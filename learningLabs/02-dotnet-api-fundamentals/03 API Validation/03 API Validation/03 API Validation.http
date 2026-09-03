@@ -1,0 +1,6 @@
+@_03_API_Validation_HostAddress = http://localhost:5209
+
+GET {{_03_API_Validation_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

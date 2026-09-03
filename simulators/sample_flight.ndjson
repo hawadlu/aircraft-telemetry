@@ -1,0 +1,8 @@
+{"type":"telemetry","version":1,"seq":1,"timestampUtc":"2026-06-10T04:00:01Z","lat":-41.2861,"lon":174.7762,"altitudeMetres":120.5,"groundSpeedKmh":38.2,"headingDegrees":94,"batteryVolts":11.7}
+{"type":"telemetry","version":1,"seq":2,"timestampUtc":"2026-06-10T04:00:02Z","lat":-41.2862,"lon":174.7764,"altitudeMetres":121.1,"groundSpeedKmh":39.0,"headingDegrees":96,"batteryVolts":11.7}
+{"type":"telemetry","version":1,"seq":3,"timestampUtc":"2026-06-10T04:00:03Z","lat":-41.2863,"lon":174.7767,"altitudeMetres":122.0,"groundSpeedKmh":39.4,"headingDegrees":98,"batteryVolts":11.6}
+{"type":"telemetry","version":1,"seq":4,"timestampUtc":"2026-06-10T04:00:04Z","lat":-41.2865,"lon":174.7769,"altitudeMetres":122.6,"groundSpeedKmh":40.1,"headingDegrees":99,"batteryVolts":11.6}
+{"type":"telemetry","version":1,"seq":6,"timestampUtc":"2026-06-10T04:00:06Z","lat":-41.2868,"lon":174.7774,"altitudeMetres":124.0,"groundSpeedKmh":41.0,"headingDegrees":102,"batteryVolts":11.5}
+{"type":"telemetry","version":1,"seq":7,"timestampUtc":"2026-06-10T04:00:07Z","lat":-41.2869,"lon":174.7777,"altitudeMetres":124.8,"groundSpeedKmh":41.3,"headingDegrees":104,"batteryVolts":11.5}
+{"type":"telemetry","version":1,"seq":8,"timestampUtc":"2026-06-10T04:00:08Z","lat":-41.2871,"lon":174.7780, BAD LINE - not valid JSON
+{"type":"telemetry","version":1,"seq":9,"timestampUtc":"2026-06-10T04:00:09Z","lat":-41.2872,"lon":174.7783,"altitudeMetres":126.0,"groundSpeedKmh":42.0,"headingDegrees":107,"batteryVolts":11.4}

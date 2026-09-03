@@ -1,51 +1,30 @@
-# Aircraft Telemetry Documentation
+# Documentation
 
-This folder contains shared documentation for the aircraft telemetry personal development project.
+System-level documentation for the aircraft telemetry project. Each sub-project (`api/`, `simulator/`, `receiver/`, `react-gui/`) keeps its own README + TDD plan for local build/run/test detail; the files here explain the decisions that cut across all of them.
 
-The repo should keep the four project-specific README files beside their projects:
+## Index
 
-```text
-simulator/README.md
-receiver/README.md
-api/README.md
-gui/README.md
-```
+| Doc | Purpose |
+|---|---|
+| [project-overview.md](project-overview.md) | Purpose, objective, success measures, goals, non-goals, stack |
+| [architecture.md](architecture.md) | Components, responsibilities, API surface, boundaries |
+| [telemetry-schema.md](telemetry-schema.md) | **The telemetry contract** (NDJSON v1) — the stable product boundary |
+| [implementation-roadmap.md](implementation-roadmap.md) | **The build order** — feature slices and the labs each one needs |
+| [realistic-timeline.md](realistic-timeline.md) | Pacing, quarterly north star, burnout guidance |
+| [ui-concepts.md](ui-concepts.md) | GUI layout, map, stale-data rules, HUD stretch |
+| [risks-and-considerations.md](risks-and-considerations.md) | Known risks and their mitigations |
+| [security-and-working-rules.md](security-and-working-rules.md) | Device/network rules + the AI-use rule |
+| [hardware/hardware-plan.md](hardware/hardware-plan.md) | Hardware strategy: phases, pin plan, hard rules |
 
-Those README files should explain how to run, test, and maintain each project. The files in this `docs/` folder explain the system-level decisions that cut across all four projects.
-
-## Recommended docs structure
-
-```text
-docs/
-  README.md
-  project-overview.md
-  architecture.md
-  telemetry-schema.md
-  hardware-plan.md
-  security-and-working-rules.md
-  risks-and-considerations.md
-  implementation-roadmap.md
-  ui-concepts.md
-  assets/
-    architecture/
-      Telemetry Architecture Diagram.drawio
-    ui-mockups/
-      01_map_first_bottom_telemetry.png
-      02_split_map_and_log.png
-      03_camera_hud_stretch_goal.png
-      04_map_camera_hud_combo.png
-```
+**Related folders:** [`../learningLabs/`](../learningLabs/) (lab definitions) · [`../components/`](../components/) (hardware buy-list + order) · [`../simulators/`](../simulators/) (test tooling).
 
 ## Reading order
 
-Start with `project-overview.md`, then `architecture.md`, then `telemetry-schema.md`.
-
-Before buying or wiring hardware, read `hardware-plan.md`, `security-and-working-rules.md`, and `risks-and-considerations.md`.
-
-Before building the frontend, read `ui-concepts.md`.
+1. **project-overview** → **architecture** → **telemetry-schema** — the what, how, and contract.
+2. **implementation-roadmap** for what to build next; **realistic-timeline** for pace.
+3. **ui-concepts** before the frontend.
+4. **hardware-plan** + **security-and-working-rules** + **risks-and-considerations** before buying or wiring hardware.
 
 ## Core principle
 
-Every component except the telemetry schema should be replaceable.
-
-The aircraft hardware can change. The radio can change. The UI can change. The API can evolve. The stable product boundary is the telemetry contract.
+Every component except the telemetry schema is replaceable. The aircraft, radio, receiver, API internals, and UI can all change; the telemetry contract is what stays stable.

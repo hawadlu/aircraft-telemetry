@@ -1,2 +1,7 @@
 /.idea/
 /react-gui/node_modules/
+/learningLabs/**/bin/
+/learningLabs/**/obj/
+/learningLabs/**/.idea/
+/**/result.txt
+/learningLabs/**/logs/

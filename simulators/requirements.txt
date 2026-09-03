@@ -1,0 +1,4 @@
+# Host-side simulator tooling dependencies (CPython 3.13).
+# Only needed for the serial_*.py tools that run on the Mac.
+# Install with:  pip install -r requirements.txt
+pyserial>=3.5

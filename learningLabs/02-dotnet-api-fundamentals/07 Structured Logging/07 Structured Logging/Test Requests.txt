@@ -1,0 +1,73 @@
+--- VALID ---
+curl -i -X POST http://localhost:8080/api/postTelemetry \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "telemetry",
+    "version": 1,
+    "seq": 42,
+    "timestampUtc": "2026-06-27T01:23:45Z",
+    "lat": -41.2865,
+    "lon": 174.7762,
+    "altitudeMetres": 25.4,
+    "groundSpeedKmh": 52.8,
+    "headingDegrees": 135.0,
+    "batteryVolts": 12.4
+  }'
+
+
+--- INVALID LATITUDE ---
+curl -i -X POST http://localhost:8080/api/postTelemetry \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "telemetry",
+    "version": 1,
+    "seq": 42,
+    "timestampUtc": "2026-06-27T01:23:45Z",
+    "lat": -999,
+    "lon": 174.7762,
+    "altitudeMetres": 25.4,
+    "groundSpeedKmh": 52.8,
+    "headingDegrees": 135.0,
+    "batteryVolts": 12.4
+  }'
+
+
+--- MISSING FIELD ---
+curl -i -X POST http://localhost:8080/api/postTelemetry \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "telemetry",
+    "version": 1,
+    "seq": 42,
+    "timestampUtc": "2026-06-27T01:23:45Z",
+    "lat": -41.2865,
+    "lon": 174.7762,
+    "altitudeMetres": 25.4,
+    "groundSpeedKmh": 52.8,
+    "headingDegrees": 135.0
+  }'
+
+--- INVALID HEADING ---
+curl -i -X POST http://localhost:8080/api/postTelemetry \
+-H "Content-Type: application/json" \
+-d '{
+  "type": "telemetry",
+  "version": 1,
+  "seq": 42,
+  "timestampUtc": "2026-06-27T01:23:45Z",
+  "lat": -41.2865,
+  "lon": 174.7762,
+  "altitudeMetres": 25.4,
+  "groundSpeedKmh": 52.8,
+  "headingDegrees": 360,
+  "batteryVolts": 12.4
+}'
+
+
+--- MALFORMED JSON ---
+curl -i -X POST http://localhost:8080/api/postTelemetry \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "telemetry",
+    "version":
+  }'

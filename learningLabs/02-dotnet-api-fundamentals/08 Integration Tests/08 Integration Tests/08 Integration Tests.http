@@ -1,0 +1,6 @@
+@_08_Integration_Tests_HostAddress = http://localhost:5130
+
+GET {{_08_Integration_Tests_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
