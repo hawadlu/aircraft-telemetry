@@ -5,3 +5,4 @@
 /learningLabs/**/.idea/
 /**/result.txt
 /learningLabs/**/logs/
+package-lock.json
