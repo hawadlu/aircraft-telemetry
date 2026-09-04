@@ -18,7 +18,7 @@ function Example() {
     const { isPending, error, data } = useQuery({
         queryKey: ['repoData'],
         queryFn: () =>
-            fetch('http://localhost:3000/api/data').then((res) =>
+            fetch('/api/data').then((res) =>
                 res.json(),
             ),
     })
