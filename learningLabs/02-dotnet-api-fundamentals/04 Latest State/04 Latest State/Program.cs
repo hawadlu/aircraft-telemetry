@@ -23,7 +23,7 @@ apiGroup.MapPost("/telemetry", (TelemetryDataPoint telemetry) =>
     return Results.Created();
 });
 
-apiGroup.MapGet("/telemetry/latest", () =>{
+apiGroup.MapGet("/latest", () =>{
     if (lastData != null) return Results.Ok(lastData);
     return Results.NotFound();
 });
