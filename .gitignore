@@ -5,5 +5,5 @@
 /learningLabs/**/.idea/
 /**/result.txt
 /learningLabs/**/logs/
-/learningLabs/**/node_modules/
+/**/node_modules/
 package-lock.json
