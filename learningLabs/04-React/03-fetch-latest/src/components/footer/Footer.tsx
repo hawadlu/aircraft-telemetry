@@ -2,6 +2,7 @@ import {
     useQuery
 } from '@tanstack/react-query'
 import {Grid, Text} from '@mantine/core';
+// @ts-ignore
 import classes from './Footer.module.css';
 import Card, {SystemDataTelemetryPoint} from "../common";
 
@@ -9,7 +10,6 @@ import Card, {SystemDataTelemetryPoint} from "../common";
 export default function Footer() {
 
     const getTelemetry = async ():Promise<SystemDataTelemetryPoint> => {
-        // Simulate a small wait to test the loading state
         const response = await fetch('/api/latest');
 
         console.log(response);

@@ -1,4 +1,5 @@
 import {Grid, Text} from '@mantine/core';
+// @ts-ignore
 import classes from './Footer.module.css';
 import Card, {SystemDataTelemetryPoint} from "../common";
 

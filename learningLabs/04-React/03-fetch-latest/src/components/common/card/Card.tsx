@@ -1,4 +1,5 @@
 import {Styles, Text} from '@mantine/core';
+// @ts-ignore
 import classes from './Card.module.css';
 
 
