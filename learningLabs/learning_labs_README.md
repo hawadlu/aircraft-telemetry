@@ -579,7 +579,7 @@ Old telemetry shown as if it is live is dangerous and misleading.
 
 ### Goal
 
-Handle API unavailable, map unavailable, empty data, and malformed responses.
+Handle API unavailable, empty data, and malformed responses.
 
 ### What this teaches
 
@@ -598,6 +598,7 @@ The interface must degrade gracefully during development and field use.
 # Stage 5: Real-Time Updates
 
 ## Lab 05.1: Polling First
+<i>This lab was completed as part of the React labs</i>
 
 ### Goal
 
