@@ -1,113 +1,68 @@
-import {useEffect, useReducer} from 'react';
+import {useEffect, useReducer, useState} from 'react';
 import * as signalR from '@microsoft/signalr';
+import {HubConnection} from "@microsoft/signalr";
+import {initialState, stateReducer} from "./reducer.ts";
+import {Action, Status} from "./types.ts";
+import Timer from "./Timer.tsx";
 
 export default function App() {
-	const initialState = {
-		messages: [],
-		status: "connecting...",
-		lastReceivedDate: null,
-		lastReceivedSecondsAgo: null
-	}
-
-	function stateReducer(state, action) {
-		switch (action.type) {
-			case "ADD_MESSAGE": {
-				return {
-					...state, messages: [...state.messages, action.message], lastReceivedDate: new Date()
-				}
-			} case "SET_STATUS": {
-				return {
-					...state, status: action.status
-				}
-			} case "SET_LAST_TIME": {
-					const lastReceivedSecondsAgoNew =
-						state.lastReceivedDate
-							? Math.floor(
-								(Date.now() - state.lastReceivedDate.getTime()) / 1000
-							)
-							: null;
-
-					return {
-						...state,
-						lastReceivedSecondsAgo: lastReceivedSecondsAgoNew
-					};
-				}
-			case "CLEAR_FEED": {
-				return {
-					...state, messages: []
-				}
-			}
-			default: return state
-		}
-		// const lastReceivedSecondsAgo = lastReceivedDate ? (new Date().getTime() - lastReceivedDate.getTime()) / 1000 : null
-		// return {
-		// 	messages: messages,
-		// 	status: status,
-		// 	lastReceivedDate: lastReceivedDate,
-		// 	lastReceivedSecondsAgo: lastReceivedSecondsAgo
-		// }
-	}
 
 	const [state, dispatch] = useReducer(stateReducer, initialState);
 
-	// const [messages, setMessages] = useState([]);
-	// const [status, setStatus] = useState('Connecting...');
-	//
-	// const [lastReceivedDate, setLastReceivedDate] = useState<Date | null>(null)
-	// const [lastReceivedSecondsAgo, setLastReceivedSecondsAgo] = useState<number | null>(null)
-
 	useEffect(() => {
-		// 1. Configure connection
+		// Configure connection
 		const connection = new signalR.HubConnectionBuilder()
 			.withUrl('http://localhost:5002/events') // Your Hub URL
 			.withAutomaticReconnect()
 			.build();
 
-		// 2. Start connection
-		connection.start()
-			// .then(() => setStatus('Connected ✔️'))
-			.then(() => dispatch({type: "SET_STATUS", status: "Connected"}))
-			// .catch(err => setStatus(`Connection Failed ❌: ${err.message}`));
-			.catch(err => dispatch({type: "SET_STATUS", status: `Connection Failed ❌: ${err.message}`}))
+		async function startSignalR(retryCount = 0): Promise<HubConnection | undefined> {
+			const maxRetries = 5;
+			// Calculate exponential delay (2s, 4s, 8s, 16s...) up to a max of 30 seconds
+			const delay = 5000;
+			console.log("Connected failed. Retrying")
 
-		// 3. Listen for incoming JSON payloads
-		// Change "ReceiveMessage" to match your backend's broadcast event name
+			try {
+				console.log("Entry try block")
+				await connection.start()
+				dispatch({type: Action.SET_STATUS, status: Status.CONNECTED})
+				return connection;
+			} catch (err) {
+				console.log(err)
+				if (retryCount < maxRetries) {
+					dispatch({type: Action.SET_STATUS, status: Status.RETRY})
+					console.log(`🔄 Retrying initial connection in ${delay / 1000}s...`);
+					await new Promise(resolve => setTimeout(resolve, delay))
+					return startSignalR(retryCount + 1)
+				}
+
+				dispatch({type: Action.SET_STATUS, status: Status.MAX_CONNECTIONS})
+				return undefined;
+			}
+		}
+
 		connection.on('MessagePublished', (data) => {
 			const formattedJson = typeof data === 'object'
 				? JSON.stringify(data, null, 2)
 				: data;
 
-			dispatch({type: "ADD_MESSAGE", message: formattedJson})
-			// dispatch({messages: [...state.messages, formattedJson], status: state.status, lastReceivedDate: new Date()})
-			// setLastReceivedDate(new Date())
-			// setMessages((prev) => [formattedJson, ...prev]);
+			dispatch({type: Action.ADD_MESSAGE, message: formattedJson})
 		});
 
 		// Reconnect behaviour
-        // connection.onreconnecting(() => setStatus("Reconnecting"))
-        // connection.onreconnected(() => setStatus("Connected"))
-        // connection.onclose(() => setStatus("Connection closed"))
+		connection.onreconnecting(() => dispatch({type: Action.SET_STATUS, status: Status.RECONNECTING}))
+		connection.onreconnected(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTED}))
+		connection.onclose(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTION_CLOSED}))
 
-		// connection.onreconnecting(() => dispatch({messages: state.messages, status: "Reconnecting", lastReceivedDate: state.lastReceivedDate}))
-		connection.onreconnecting(() => dispatch({type: "SET_STATUS", status: "Connected"}))
-		// connection.onreconnected(() => dispatch({messages: state.messages, status: "Connected", lastReceivedDate: state.lastReceivedDate}))
-		connection.onreconnected(() => dispatch({type: "SET_STATUS", status: "Connected"}))
-		// connection.onclose(() => dispatch({messages: state.messages, status: "Connection closed", lastReceivedDate: state.lastReceivedDate}))
-		connection.onclose(() => dispatch({type: "SET_STATUS", status: "Connection closed"}))
+		// Start connection
+		startSignalR(0).then(() => {
+			console.log("Connection started")
+		})
 
-		// Timer
-		setInterval(() => {
-			dispatch({ type: "SET_LAST_TIME" });
-		}, 1000);
-
-
-
-		// Cleanup connection when the component unmounts
 		return () => {
-			connection.stop();
+			connection.stop().then(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTION_CLOSED}));
 		};
 	}, []);
-
 
 	return (
 		<div style={{padding: '20px', fontFamily: 'monospace', maxWidth: '800px', margin: '0 auto'}}>
@@ -117,21 +72,18 @@ export default function App() {
 			<div style={{
 				padding: '10px',
 				borderRadius: '4px',
-				backgroundColor: state.status.includes('Connected') ? '#e6fffa' : '#fff5f5',
-				color: state.status.includes('Connected') ? '#234e52' : '#9b2c2c',
+				backgroundColor: state.status.includes(Status.CONNECTED) ? '#e6fffa' : '#fff5f5',
+				color: state.status.includes(Status.CONNECTED) ? '#234e52' : '#9b2c2c',
 				marginBottom: '15px'
 			}}>
 				<strong>Status:</strong> {state.status}
-				<p>Last telemetry received: {state.lastReceivedSecondsAgo !== null
-					? `${state.lastReceivedSecondsAgo}s`
-					: "No telemetry received"}
-				</p>
+				<Timer lastReceivedDate={state.lastReceivedDate} />
 			</div>
 
 			{/* Control Button */}
 			{state.messages.length > 0 && (
 				<button
-					onClick={() => dispatch({ type: "CLEAR_FEED" })}
+					onClick={() => dispatch({ type: Action.CLEAR_FEED })}
 					style={{padding: '8px 12px', cursor: 'pointer', marginBottom: '15px'}}
 				>
 					Clear Feed
