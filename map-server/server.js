@@ -6,7 +6,7 @@ const app = express();
 
 app.use(
     "/maps",
-    express.static(path.join(__dirname, "map-data"))
+    express.static(path.join(__dirname, "..", "maps", "map-data"))
 );
 
 app.use(

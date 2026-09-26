@@ -12,7 +12,8 @@
   "dependencies": {
     "maplibre-gl": "^6.10.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "pmtiles": "^4.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

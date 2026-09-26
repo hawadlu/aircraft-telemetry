@@ -7,4 +7,4 @@
 /learningLabs/**/logs/
 /**/node_modules/
 package-lock.json
-/map-server/map-data/**
+/maps/map-data/map.pmtiles
