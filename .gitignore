@@ -3,8 +3,8 @@
 /learningLabs/**/bin/
 /learningLabs/**/obj/
 /learningLabs/**/.idea/
-/**/result.txt
+/map-server/mapServer.txt
 /learningLabs/**/logs/
 /**/node_modules/
 package-lock.json
-/maps/map-data/**
+/map-server/map-data/**
