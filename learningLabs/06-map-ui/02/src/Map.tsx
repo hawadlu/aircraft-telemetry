@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
-
+// NOTE: CODEX WAS USED TO GET THE FIRST IMPLEMENTATION OF THIS WORKING.
 // Register once, including when React StrictMode remounts the map.
 const protocol = new Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
@@ -14,6 +14,7 @@ export function MapView({ lat, lng }: Props) {
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const initialCenter = useRef<[number, number]>([lng, lat]);
     const [error, setError] = useState<string | null>(null);
+    const [position, setPosition] = useState<{lat: number, lon: number}>({lat: lat, lon: lng})
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -21,7 +22,7 @@ export function MapView({ lat, lng }: Props) {
         const map = new maplibregl.Map({
             container: containerRef.current,
             center: initialCenter.current,
-            zoom: 10,
+            zoom: 17,
             style: {
                 version: 8,
                 sources: {
@@ -63,8 +64,28 @@ export function MapView({ lat, lng }: Props) {
         };
     }, []);
 
+    // Run the map updates
+    useEffect(() => {
+        const newLon = position.lon;
+        const newLat = position.lat + 0.000000001;
+        markerRef.current?.setLngLat([newLon, newLat])
+
+        // This is generally a bad idea for full size projects and would usually be driven by an external component
+        setPosition({lat: newLat, lon: newLon})
+    }, [position.lat, position.lon]);
+
     useEffect(() => {
         markerRef.current?.setLngLat([lng, lat]);
+
+        // Note, This location would come from the server in the real project
+        const intervalId = setInterval(() => {
+            console.log(markerRef.current?.getLngLat().lng);
+        }, 10000);
+
+        return () => {
+            clearInterval(intervalId)
+        }
+
     }, [lat, lng]);
 
     return (
