@@ -7,5 +7,4 @@
 /learningLabs/**/logs/
 /**/node_modules/
 package-lock.json
-/maps/map-data/map.pmtiles
-/maps/map-data/queenElizabethPark.osm
+/maps/map-data/
