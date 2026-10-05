@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
-// NOTE: CODEX WAS USED TO GET THE FIRST IMPLEMENTATION OF THIS WORKING.
-// Register once, including when React StrictMode remounts the map.
+
 const protocol = new Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
@@ -13,85 +12,105 @@ export function MapView({ lat, lng }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const initialCenter = useRef<[number, number]>([lng, lat]);
+    const latestPosition = useRef<[number, number]>([lng, lat]);
     const [error, setError] = useState<string | null>(null);
-    const [position, setPosition] = useState<{lat: number, lon: number}>({lat: lat, lon: lng})
+    const [raster, setRaster] = useState(false);
 
     useEffect(() => {
-        if (!containerRef.current) return;
-        const archiveUrl = new URL("/maps/map.pmtiles", window.location.origin).href;
-        const map = new maplibregl.Map({
-            container: containerRef.current,
-            center: initialCenter.current,
-            zoom: 17,
-            style: {
-                version: 8,
-                sources: {
-                    local: { type: "vector", url: `pmtiles://${archiveUrl}` },
-                },
-                // These source-layer names come from this archive's metadata.
-                layers: [
-                    { id: "background", type: "background", paint: { "background-color": "#b9ddeb" } },
-                    // "boundaries" contains island polygons; "land" only contains land-cover patches.
-                    { id: "land-base", type: "fill", source: "local", "source-layer": "boundaries", paint: { "fill-color": "#e6e8d7" } },
-                    { id: "land", type: "fill", source: "local", "source-layer": "land", paint: { "fill-color": "#e6e8d7" } },
-                    { id: "water", type: "fill", source: "local", "source-layer": "water_polygons", paint: { "fill-color": "#b9ddeb" } },
-                    { id: "rivers", type: "line", source: "local", "source-layer": "water_lines", paint: { "line-color": "#8bbfd5", "line-width": 1 } },
-                    { id: "buildings", type: "fill", source: "local", "source-layer": "buildings", minzoom: 13, paint: { "fill-color": "#c4bdb3" } },
-                    { id: "road-areas", type: "fill", source: "local", "source-layer": "street_polygons", paint: { "fill-color": "#ffffff" } },
-                    { id: "roads", type: "line", source: "local", "source-layer": "streets", paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.5, 15, 3] } },
-                ],
-            },
-        });
-        map.on("error", (event) => {
-            console.error("Map error:", event.error);
-            setError("Unable to load the local map. Check that the map server is running on port 3000.");
-        });
-        map.on("idle", () => {
-            if (map.isSourceLoaded("local")) setError(null);
-        });
-        map.addControl(new maplibregl.NavigationControl());
-        const el = document.createElement("img");
-        el.src = "./marker.svg";
-        el.alt = "Aircraft position";
-        el.style.width = "32px";
-        el.style.height = "32px";
-        markerRef.current = new maplibregl.Marker({ element: el })
-            .setLngLat(initialCenter.current)
-            .addTo(map);
+        const container = containerRef.current;
+        if (!container) return;
+        const controller = new AbortController();
+        let map: maplibregl.Map | undefined;
+        let popup: maplibregl.Popup | undefined;
+
+        async function initialize() {
+            try {
+                const response = await fetch("/maps/style.json", { signal: controller.signal });
+                if (!response.ok) throw new Error(`Map style request failed (${response.status})`);
+                const style: maplibregl.StyleSpecification = await response.json();
+                if (controller.signal.aborted) return;
+                // Use the browser origin so the same style works through Vite's
+                // proxy and when the map server uses a different port or host.
+                const source = style.sources.local;
+                if (!source || (source.type !== "vector" && source.type !== "raster")) throw new Error("The map style has no supported source");
+                setRaster(source.type === "raster");
+                source.url = `pmtiles://${new URL("/maps/map.pmtiles", window.location.origin).href}`;
+                map = new maplibregl.Map({
+                    container: container!,
+                    center: initialCenter.current,
+                    zoom: 17,
+                    maxZoom: 22,
+                    style,
+                });
+                const currentMap = map;
+                currentMap.on("error", (event) => {
+                    console.error("Map error:", event.error);
+                    setError(`Unable to render the selected map: ${event.error.message}`);
+                });
+                currentMap.on("idle", () => {
+                    if (currentMap.isSourceLoaded("local")) setError(null);
+                });
+                currentMap.addControl(new maplibregl.NavigationControl());
+                currentMap.addControl(new maplibregl.ScaleControl());
+                currentMap.on("click", (event) => {
+                    const features = currentMap.queryRenderedFeatures(event.point);
+                    const content = document.createElement("div");
+                    content.style.cssText = "max-height:320px;overflow:auto;font:12px sans-serif";
+                    const seen = new Set<string>();
+                    for (const feature of features) {
+                        const key = `${feature.sourceLayer}:${feature.id ?? JSON.stringify(feature.properties)}`;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        const details = document.createElement("details");
+                        details.open = seen.size === 1;
+                        const summary = document.createElement("summary");
+                        summary.textContent = String(feature.properties.name ?? `${feature.sourceLayer} · ${feature.geometry.type}`);
+                        details.append(summary);
+                        const tags = document.createElement("pre");
+                        tags.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere";
+                        tags.textContent = JSON.stringify(feature.properties, null, 2);
+                        details.append(tags);
+                        content.append(details);
+                    }
+                    popup?.remove();
+                    if (seen.size) {
+                        popup = new maplibregl.Popup({ maxWidth: "420px" })
+                            .setLngLat(event.lngLat).setDOMContent(content).addTo(currentMap);
+                    }
+                });
+                const icon = document.createElement("img");
+                icon.src = "./marker.svg";
+                icon.alt = "Aircraft position";
+                icon.style.width = "32px";
+                icon.style.height = "32px";
+                markerRef.current = new maplibregl.Marker({ element: icon })
+                    .setLngLat(latestPosition.current).addTo(currentMap);
+            } catch (cause) {
+                if (!controller.signal.aborted) {
+                    setError(cause instanceof Error ? cause.message : "Unable to load the map");
+                }
+            }
+        }
+        void initialize();
         return () => {
-            map.remove();
+            controller.abort();
+            popup?.remove();
+            markerRef.current?.remove();
             markerRef.current = null;
+            map?.remove();
         };
     }, []);
 
-    // Run the map updates
     useEffect(() => {
-        const newLon = position.lon;
-        const newLat = position.lat + 0.000000001;
-        markerRef.current?.setLngLat([newLon, newLat])
-
-        // This is generally a bad idea for full size projects and would usually be driven by an external component
-        setPosition({lat: newLat, lon: newLon})
-    }, [position.lat, position.lon]);
-
-    useEffect(() => {
+        latestPosition.current = [lng, lat];
         markerRef.current?.setLngLat([lng, lat]);
-
-        // Note, This location would come from the server in the real project
-        const intervalId = setInterval(() => {
-            console.log(markerRef.current?.getLngLat().lng);
-        }, 10000);
-
-        return () => {
-            clearInterval(intervalId)
-        }
-
     }, [lat, lng]);
 
     return (
         <div style={{ position: "relative" }}>
             <div ref={containerRef} style={{ width: "100%", height: "80vh" }} />
             {error && <p role="alert" style={{ position: "absolute", top: 8, left: 8, right: 48, background: "white", padding: 12 }}>{error}</p>}
+            <p>{raster ? "Aerial imagery. Zoom in to inspect ground detail." : "Click a feature to inspect its stored OSM tags. Labels and colours use an OpenStreetMap-like style."}</p>
         </div>
     );
 }
