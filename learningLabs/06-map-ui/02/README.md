@@ -1,9 +1,16 @@
 # Local PMTiles map
 
-From the repository root, start the map server:
+## Work laptop: view an already converted map
+
+You need Node.js/npm and a browser with WebGL support. Install Node using an
+approved installer; Homebrew is not required. The repository's `.nvmrc` records
+the development Node version.
+
+Copy a converted `.pmtiles` archive from your personal laptop into
+`maps/map-data`. From the repository root, start the map server (replace
+`queenElizabethPark` with the copied archive's name):
 
 ```sh
-brew install pmtiles
 cd maps/map-server
 npm install
 npm start -- queenElizabethPark
@@ -16,6 +23,11 @@ cd learningLabs/06-map-ui/02
 npm install
 npm run dev
 ```
+
+Both projects use npm dependencies only for serving/rendering. The server reads
+PMTiles metadata with the `pmtiles` JavaScript package; this lab uses `pmtiles`
+for archive byte ranges and MapLibre GL JS for browser rendering. No PMTiles
+CLI, GDAL, Osmium, Tippecanoe, Python or other Homebrew libraries are needed.
 
 Open the URL printed by Vite. `/maps` is proxied to port 3000. The server selects
 an archive and exposes it at `/maps/map.pmtiles` with byte-range support. It
@@ -33,11 +45,16 @@ for their intended appearance.
 The aircraft marker follows the `lat`/`lng` props. The map starts around that
 position at zoom 17 and supports overzooming to 22.
 
-See `maps/map-server/Readme.md` for conversion commands, preservation settings,
-feature audits, source PBF backups and the limits of OSM-to-vector-tile conversion.
+Convert raw OSM or GeoTIFF data on the **personal laptop** using the Homebrew
+tools documented in the [map server README](../../../maps/map-server/Readme.md).
+Only the resulting `.pmtiles` file is needed on the work laptop. The conversion
+scripts, preservation settings, feature audits and source backups stay in that
+separate preparation workflow.
 
 `npm run build` checks TypeScript and builds the UI. `npm run preview` also
 proxies map requests, so leave the map server running when previewing.
+`npm run lint` checks the lab source. In `maps/map-server`, `npm test` verifies
+the server without any conversion tools installed.
 
 ## Aerial imagery
 

@@ -2,10 +2,12 @@
   "name": "local-map-server",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test-server.js"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "pmtiles": "^4.3.0"
   }
 }

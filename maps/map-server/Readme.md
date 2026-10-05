@@ -4,14 +4,24 @@ For aerial/satellite GeoTIFFs (including the supplied Kāpiti Coast directory),
 see [GeoTIFF conversion instructions](GEOTIFF.md). The server and UI accept both
 vector PMTiles and raster PNG/JPEG/WebP PMTiles.
 
-Install the conversion tools through Homebrew, then install the Node dependencies:
+## View maps on the work laptop (Node/npm only)
+
+Install Node.js and npm using an approved installer (the repository's `.nvmrc`
+records the development version). Copy a converted `.pmtiles` file from the
+personal laptop into `maps/map-data`, then install the Node dependencies:
 
 ```sh
-brew install osmium-tool tippecanoe pmtiles
 cd maps/map-server # from the repository root
 npm install
 npm start -- queenElizabethPark
 ```
+
+Use the name of the archive you copied, for example `kapiti-coast-2025` for
+imagery. Serving and rendering need **no Homebrew packages, Python, GDAL,
+Osmium, Tippecanoe or PMTiles CLI**. The server reads archive metadata with the
+`pmtiles` npm package and Node's filesystem API; MapLibre GL JS and `pmtiles`
+render the map in the browser. Only small byte ranges are read at startup,
+not the entire archive. A browser with WebGL support is required.
 
 The server accepts a map name, `.pmtiles` filename, or explicit path. Bare names
 resolve under `maps/map-data`; explicit relative paths resolve from the current
@@ -32,6 +42,13 @@ style. A third-party archive with a different schema may need its own style to
 interpret its attributes correctly, even though every layer receives a fallback.
 
 ## Convert an OSM extract
+
+Run conversion on the **personal laptop only**. Homebrew is needed here, not on
+the machine serving or viewing maps:
+
+```sh
+brew install osmium-tool tippecanoe pmtiles
+```
 
 The Python wrapper uses the standard library to invoke **Osmium, Tippecanoe and
 PMTiles**. It does not implement geometry conversion, hand-classify features, or
@@ -57,8 +74,9 @@ npm start -- queenElizabethPark
 ```
 
 The national archive is **not regenerated automatically** by the park command.
-A file merely named `.pmtiles` is not necessarily PMTiles; the server now checks
-it using the official PMTiles reader and rejects invalid archives.
+A file merely named `.pmtiles` is not necessarily PMTiles; the server checks the
+v3 header and metadata with the official JavaScript PMTiles reader and rejects
+invalid or unsupported archives. Full archive verification remains part of conversion.
 
 Default zooms are 0–18 with extent 8192. `--maxzoom 19` provides approximately
 1 cm global grid precision; zooms up to 22 are supported. More zoom levels do
@@ -83,6 +101,10 @@ Each successful conversion produces:
 | `name.source.osm.pbf` | Complete original OSM objects, including relation membership and metadata |
 | `name.conversion.json` | Object/feature counts, tag-key inventory, tile audit, source checksum, archive settings, exact commands and limitations |
 | `name.conversion.log` | Tool output and missing-reference/geometry diagnostics |
+
+Copy `name.pmtiles` to the work laptop for viewing. Keep the source PBF, reports
+and logs on the personal laptop for preservation and auditing; the viewer does
+not require them or the conversion tools.
 
 The source PBF's OSM object-content CRC is compared with the input before
 publishing. The wrapper also decodes the complete archive and verifies that
@@ -151,12 +173,19 @@ References: [Osmium export](https://docs.osmcode.org/osmium/latest/osmium-export
 ## Checks
 
 ```sh
-python3 test_conversion.py
+npm test
 node --check server.js
 # From learningLabs/06-map-ui/02:
 npm run build
+npm run lint
 ```
 
+The server tests run with an empty executable search path and synthetic PMTiles
+fixtures, so they require only Node/npm. They cover vector/raster styles,
+compressed metadata, byte ranges and invalid archives.
+
+On the personal laptop with conversion tools installed, run
+`python3 test_conversion.py` and `python3 test_geotiff.py` separately.
 The conversion tests decode generated tiles and check uncommon tags, colour tags,
 untagged nodes and a tiny polygon. They also verify relation preservation in the
 source PBF and that incomplete input cannot overwrite a good archive by default.

@@ -104,6 +104,11 @@ export function MapView({ lat, lng }: Props) {
     useEffect(() => {
         latestPosition.current = [lng, lat];
         markerRef.current?.setLngLat([lng, lat]);
+        const timer = window.setInterval(() => {
+            latestPosition.current[1] += 0.000003; // Move north; keep longitude fixed.
+            markerRef.current?.setLngLat(latestPosition.current);
+        }, 100);
+        return () => window.clearInterval(timer);
     }, [lat, lng]);
 
     return (

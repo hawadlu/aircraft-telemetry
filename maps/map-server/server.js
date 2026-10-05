@@ -1,7 +1,8 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const { execFileSync } = require("child_process");
+const { TileType } = require("pmtiles");
+const { readArchive } = require("./read-archive");
 const { buildStyle } = require("./map-style");
 
 const cors = require('cors');
@@ -25,70 +26,63 @@ const mapPath = path.dirname(filename) === "." && !filename.startsWith(".")
     ? path.join(mapDataDirectory, filename)
     : path.resolve(filename);
 
-let metadata;
-let header;
-try {
-    if (path.extname(mapPath).toLowerCase() !== ".pmtiles" || !fs.statSync(mapPath).isFile()) {
-        throw new Error("Select a .pmtiles file");
+async function start() {
+    let metadata;
+    let header;
+    try {
+        if (path.extname(mapPath).toLowerCase() !== ".pmtiles" || !fs.statSync(mapPath).isFile()) {
+            throw new Error("Select a .pmtiles file");
+        }
+        ({ metadata, header } = await readArchive(mapPath));
+    } catch (error) {
+        console.error(`Cannot use map ${mapPath}: ${error.message}`);
+        process.exitCode = 1;
+        return;
     }
-    fs.accessSync(mapPath, fs.constants.R_OK);
-    // Use the official PMTiles reader, rather than assuming a layer schema or
-    // treating an incorrectly named SQLite/MBTiles database as a PMTiles file.
-    metadata = JSON.parse(execFileSync("pmtiles", ["show", mapPath, "--metadata"], {
-        encoding: "utf8", maxBuffer: 16 * 1024 * 1024,
+
+    const app = express();
+    app.use(cors({
+        origin: ["http://localhost:5173", "http://localhost:5174"],
+        exposedHeaders: ["Content-Range", "Accept-Ranges", "ETag"],
     }));
-    header = JSON.parse(execFileSync("pmtiles", ["show", mapPath, "--header-json"], { encoding: "utf8" }));
-    if (header.tile_type === "mvt" && (!Array.isArray(metadata.vector_layers) || metadata.vector_layers.length === 0)) {
-        throw new Error("The map must contain vector layers");
-    }
-    if (!["mvt", "png", "jpg", "jpeg", "webp", "avif"].includes(header.tile_type)) {
-        throw new Error(`Unsupported tile type: ${header.tile_type}`);
-    }
-} catch (error) {
-    console.error(`Cannot use map ${mapPath}: ${error.message}`);
-    if (error.code === "ENOENT" && error.path === "pmtiles") {
-        console.error("Install the PMTiles reader: brew install pmtiles");
-    }
-    process.exit(1);
+
+    app.get("/maps/style.json", (req, res) => {
+        res.set("Cache-Control", "no-store");
+        const attribution = String(metadata.attribution || (header.tileType === TileType.Mvt ? "© OpenStreetMap contributors" : ""))
+            .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+        const archiveUrl = `${req.protocol}://${req.get("host")}/maps/map.pmtiles`;
+        if (header.tileType !== TileType.Mvt) {
+            res.json({
+                version: 8, name: metadata.name || "Aerial imagery",
+                sources: { local: { type: "raster", url: `pmtiles://${archiveUrl}`, tileSize: 256, attribution } },
+                layers: [{ id: "imagery", type: "raster", source: "local", paint: { "raster-fade-duration": 0 } }],
+            });
+        } else {
+            res.json(buildStyle(metadata.vector_layers.map((layer) => layer.id), archiveUrl, attribution));
+        }
+    });
+
+    // Keep the client's URL stable when selecting a different archive.
+    app.get("/maps/map.pmtiles", (req, res, next) => {
+        res.sendFile(mapPath, { cacheControl: false }, (error) => {
+            if (error) next(error);
+        });
+    });
+    // Preserve access to other archives by their actual filenames.
+    app.use("/maps", express.static(mapDataDirectory));
+
+    const port = process.env.PORT || 3000;
+    const server = app.listen(port).on("listening", () => {
+        console.log(`Map server running on http://localhost:${server.address().port}`);
+        console.log(`Serving ${mapPath} at /maps/map.pmtiles`);
+    }).on("error", (error) => {
+        console.error(`Cannot start map server: ${error.message}`);
+        process.exitCode = 1;
+    });
 }
 
-const app = express();
-app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
-    exposedHeaders: ["Content-Range", "Accept-Ranges", "ETag"],
-}));
-
-app.get("/maps/style.json", (req, res) => {
-    res.set("Cache-Control", "no-store");
-    const attribution = String(metadata.attribution || (header.tile_type === "mvt" ? "© OpenStreetMap contributors" : ""))
-        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-    const archiveUrl = `${req.protocol}://${req.get("host")}/maps/map.pmtiles`;
-    if (header.tile_type !== "mvt") {
-        res.json({
-            version: 8, name: metadata.name || "Aerial imagery",
-            sources: { local: { type: "raster", url: `pmtiles://${archiveUrl}`, tileSize: 256, attribution } },
-            layers: [{ id: "imagery", type: "raster", source: "local", paint: { "raster-fade-duration": 0 } }],
-        });
-    } else {
-        res.json(buildStyle(metadata.vector_layers.map((layer) => layer.id), archiveUrl, attribution));
-    }
-});
-
-// Keep the client's URL stable when selecting a different archive.
-app.get("/maps/map.pmtiles", (req, res, next) => {
-    res.sendFile(mapPath, { cacheControl: false }, (error) => {
-        if (error) next(error);
-    });
-});
-// Preserve access to other archives by their actual filenames.
-app.use("/maps", express.static(mapDataDirectory));
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-    console.log(`Map server running on http://localhost:${port}`);
-    console.log(`Serving ${mapPath} at /maps/map.pmtiles`);
-}).on("error", (error) => {
+start().catch((error) => {
     console.error(`Cannot start map server: ${error.message}`);
     process.exitCode = 1;
 });

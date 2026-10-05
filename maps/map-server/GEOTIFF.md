@@ -1,8 +1,13 @@
 # GeoTIFF imagery to PMTiles
 
-The Python wrapper invokes Homebrew's **GDAL** and **PMTiles** command-line tools.
+Conversion runs on the **personal laptop only**. The Python wrapper invokes
+Homebrew's **GDAL** and **PMTiles** command-line tools.
 It accepts a single GeoTIFF or a directory of `.tif`/`.tiff` files (including
 subdirectories). Python uses only its standard library; no pip packages are needed.
+
+The work laptop only needs Node/npm and the converted `.pmtiles` file to serve
+and view maps. It does not need Homebrew, GDAL, Python or the PMTiles CLI.
+See [viewer setup](Readme.md#view-maps-on-the-work-laptop-nodenpm-only).
 
 ```sh
 brew install gdal pmtiles
@@ -16,8 +21,11 @@ python3 convert-geotiff.py \
   ../map-data/kapiti-coast-2025.pmtiles \
   --attribution 'Kapiti Coast District Council; Aerial Surveys; LINZ Data Service — CC BY 4.0'
 
-npm start -- kapiti-coast-2025
 ```
+
+After conversion, copy `kapiti-coast-2025.pmtiles` into `maps/map-data` on the work
+laptop. From `maps/map-server`, run `npm install` and then
+`npm start -- kapiti-coast-2025`. Start lab `06-map-ui/02` as described in its README.
 
 For a single large TIFF:
 
