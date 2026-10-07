@@ -39,7 +39,9 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
             icon.alt = "Aircraft position";
             icon.style.width = "32px";
             icon.style.height = "32px";
+            console.log("Heading: " + position?.heading)
             markerRef.current = new maplibregl.Marker({ element: icon })
+                .setRotation(position?.heading)
                 .setLngLat(coordinates).addTo(map);
         } else {
             markerRef.current.setLngLat(coordinates);

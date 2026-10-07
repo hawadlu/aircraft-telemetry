@@ -17,4 +17,5 @@ export type StatusType = typeof Status[keyof typeof Status];
 export type AircraftPosition = {
 	lat: number;
 	lng: number;
+	heading: number;
 };

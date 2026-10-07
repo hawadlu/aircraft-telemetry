@@ -59,9 +59,10 @@ export default function App() {
                 const telemetry = JSON.parse(data.text);
                 const lat = telemetry?.lat ?? telemetry?.Lat;
                 const lng = telemetry?.lon ?? telemetry?.Lon;
+	            const heading = telemetry?.HeadingDegrees ?? telemetry?.HeadingDegrees;
                 if (typeof lat === "number" && Number.isFinite(lat) && Math.abs(lat) <= 90 &&
                     typeof lng === "number" && Number.isFinite(lng) && Math.abs(lng) <= 180) {
-                    setPosition({ lat, lng });
+                    setPosition({ lat, lng, heading });
                 }
             } catch (error) {
                 console.warn("Ignoring invalid coordinate payload", error);

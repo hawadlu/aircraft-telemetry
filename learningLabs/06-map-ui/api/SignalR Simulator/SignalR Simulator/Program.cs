@@ -28,7 +28,7 @@ public sealed class MessagePublisher(
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
-        List<TelemetryDataPoint> telemetryDataPoints = getTelemetryDataPoints(10);
+        List<TelemetryDataPoint> telemetryDataPoints = getTelemetryDataPoints(100);
         List<SystemTelemetryDataPoint> systemTelemetryDataPoints = getSystemDataTelemetryPoints(telemetryDataPoints);
         Console.WriteLine("Finished creating data");
         
@@ -80,7 +80,15 @@ public sealed class MessagePublisher(
             for (int i = 0; i < numPoints; i++)
             {
                 double[] coordinates = calculateCoordinates(i, numPoints);
+                
+                // calculate the heading
+                double heading = 0;
 
+                if (points.Count > 1)
+                {
+                    heading = calculateHeadingDegrees(points[i - 1], coordinates);
+                }
+                
                 TelemetryDataPoint point = new TelemetryDataPoint
                 {
                     Type = "telemetry",
@@ -91,7 +99,7 @@ public sealed class MessagePublisher(
                     Lon = coordinates[1],
                     AltitudeMetres = 1.0,
                     GroundSpeedKmh = 1.0,
-                    HeadingDegrees = 180,
+                    HeadingDegrees = heading,
                     BatteryVolts = 1
                 };
                 points.Add(point);
@@ -100,6 +108,29 @@ public sealed class MessagePublisher(
             return points;
         }
 
+        private double calculateHeadingDegrees(TelemetryDataPoint previous, double[] coordinates)
+        {
+            double previousLatRad = previous.Lat * Math.PI / 180;
+            double previousLonRad = previous.Lon * Math.PI / 180;
+            double latestLatRad = coordinates[0] * Math.PI / 180;
+            double latestLonRad = coordinates[1] * Math.PI / 180;
+            
+            double deltaLon = latestLonRad - previousLonRad;
+            // Apply the components of the bearing formula
+            double y = Math.Sin(deltaLon) * Math.Cos(latestLatRad);
+            double x = (Math.Cos(previousLatRad) * Math.Sin(latestLatRad) -
+                        Math.Sin(previousLatRad) * Math.Cos(latestLatRad) * Math.Cos(deltaLon));
+    
+            // Calculate initial bearing in radians and convert to degrees
+            double initialBearingRad = Math.Atan2(y, x);
+            double initialBearingDeg = initialBearingRad * 180 / Math.PI;
+    
+            // Normalize to 0° - 360°
+            double compassHeading = (initialBearingDeg + 360) % 360;
+
+            return compassHeading;
+
+        }
 
         private double[] calculateCoordinates(int i, int numPoints)
         {
