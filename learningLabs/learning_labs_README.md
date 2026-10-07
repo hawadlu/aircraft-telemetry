@@ -660,6 +660,8 @@ Live systems must handle broken connections without lying to the user.
 
 # Stage 6: Map UI
 <i>Note: Labs 2 - 6 have been combined</i>
+
+<i>AI was used to debug parts of this lab and lay the foundations of the map component due to time constraints</i>
 ## Lab 06.1: MapLibre Static Map
 
 ### Goal

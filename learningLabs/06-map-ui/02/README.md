@@ -42,8 +42,12 @@ Styling and label collision rules control visibility; they do not remove data
 from the archive. Different third-party layer schemas may need a custom style
 for their intended appearance.
 
-The aircraft marker follows the `lat`/`lng` props. The map starts around that
-position at zoom 17 and supports overzooming to 22.
+The map opens at Kapiti Aeromodellers club at zoom 17, even while SignalR is
+connecting or waiting for telemetry. Pan and zoom work immediately. Once valid
+coordinates arrive, the aircraft marker, flight trail, and map centre update
+automatically. Messages without valid coordinates preserve the last position.
+The map supports overzooming to 22. The map server must be running independently
+of the telemetry server.
 
 Convert raw OSM or GeoTIFF data on the **personal laptop** using the Homebrew
 tools documented in the [map server README](../../../maps/map-server/Readme.md).

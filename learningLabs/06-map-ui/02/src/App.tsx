@@ -9,12 +9,13 @@ import Timer from "./Timer.tsx";
 
 
 export default function App() {
-	// Demo starting location at Kapiti Aeromodellers club
+	// No aircraft marker until valid coordinates arrive.
 	const [position, setPosition] = useState<AircraftPosition | null>(null);
 
 	const [state, dispatch] = useReducer(stateReducer, initialState);
 
 	useEffect(() => {
+        let disposed = false;
 		// Configure connection
 		const connection = new signalR.HubConnectionBuilder()
 			.withUrl('http://localhost:5002/events') // Your Hub URL
@@ -22,6 +23,7 @@ export default function App() {
 			.build();
 
 		async function startSignalR(retryCount = 0): Promise<HubConnection | undefined> {
+            if (disposed) return undefined;
 			const maxRetries = 5;
 			// Calculate exponential delay (2s, 4s, 8s, 16s...) up to a max of 30 seconds
 			const delay = 5000;
@@ -30,9 +32,11 @@ export default function App() {
 			try {
 				console.log("Entry try block")
 				await connection.start()
+                if (disposed) return undefined;
 				dispatch({type: Action.SET_STATUS, status: Status.CONNECTED})
 				return connection;
 			} catch (err) {
+                if (disposed) return undefined;
 				console.log(err)
 				if (retryCount < maxRetries) {
 					dispatch({type: Action.SET_STATUS, status: Status.RETRY})
@@ -51,12 +55,17 @@ export default function App() {
 				? JSON.stringify(data, null, 2)
 				: data;
 
-			const telemetry = JSON.parse(data.text);
-
-			console.log(telemetry.Lat);
-			console.log(telemetry.Lon);
-
-			setPosition({lat: telemetry.lat, lng: telemetry.lon})
+            try {
+                const telemetry = JSON.parse(data.text);
+                const lat = telemetry?.lat ?? telemetry?.Lat;
+                const lng = telemetry?.lon ?? telemetry?.Lon;
+                if (typeof lat === "number" && Number.isFinite(lat) && Math.abs(lat) <= 90 &&
+                    typeof lng === "number" && Number.isFinite(lng) && Math.abs(lng) <= 180) {
+                    setPosition({ lat, lng });
+                }
+            } catch (error) {
+                console.warn("Ignoring invalid coordinate payload", error);
+            }
 
 			dispatch({type: Action.ADD_MESSAGE, message: formattedJson})
 		});
@@ -64,7 +73,9 @@ export default function App() {
 		// Reconnect behaviour
 		connection.onreconnecting(() => dispatch({type: Action.SET_STATUS, status: Status.RECONNECTING}))
 		connection.onreconnected(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTED}))
-		connection.onclose(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTION_CLOSED}))
+		connection.onclose(() => {
+            if (!disposed) dispatch({type: Action.SET_STATUS, status: Status.CONNECTION_CLOSED});
+        })
 
 		// Start connection
 		startSignalR(0).then(() => {
@@ -72,14 +83,16 @@ export default function App() {
 		})
 
 		return () => {
-			connection.stop().then(() => dispatch({type: Action.SET_STATUS, status: Status.CONNECTION_CLOSED}));
+            disposed = true;
+            connection.off("MessagePublished");
+            void connection.stop();
 		};
 	}, []);
 
 	return (
 		<>
 			<h1>App</h1>
-			<MapView posistion={position}/>
+			<MapView position={position}/>
 			<div style={{padding: '20px', fontFamily: 'monospace', maxWidth: '800px', margin: '0 auto'}}>
 				<h2>SignalR JSON Feed</h2>
 

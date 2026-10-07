@@ -3,19 +3,18 @@ import * as maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {AircraftPosition} from "./types.ts";
-import {Marker} from "maplibre-gl";
+
 
 const protocol = new Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
 
-export function MapView(position: AircraftPosition) {
+export function MapView({ position }: { position: AircraftPosition | null }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
-    const trailRef = useRef<[number, number][]>([[position.lng, position.lat],]);
-    const initialCenter = useRef<[number, number]>([position.lng, position.lat]);
-    const latestPosition = useRef<[number, number]>([position.lng, position.lat]);
+    const trailRef = useRef<[number, number][]>([]);
+    const latestPosition = useRef<[number, number] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [raster, setRaster] = useState(false);
 
@@ -33,28 +32,20 @@ export function MapView(position: AircraftPosition) {
         });
     }
 
-    useEffect(() => {
-        if (!mapRef.current) {
-            return;
-        }
-
-        if (!position) {
-            markerRef.current?.remove();
-            markerRef.current = null;
-            return;
-        }
-
+    function updateAircraft(map: maplibregl.Map, coordinates: [number, number]) {
         if (!markerRef.current) {
-            markerRef.current = new Marker()
-                .setLngLat([position.lng, position.lat])
-                .addTo(mapRef.current);
+            const icon = document.createElement("img");
+            icon.src = "./marker.svg";
+            icon.alt = "Aircraft position";
+            icon.style.width = "32px";
+            icon.style.height = "32px";
+            markerRef.current = new maplibregl.Marker({ element: icon })
+                .setLngLat(coordinates).addTo(map);
+        } else {
+            markerRef.current.setLngLat(coordinates);
         }
-
-        markerRef.current.setLngLat([
-            position.lng,
-            position.lat,
-        ]);
-    }, [position]);
+        map.jumpTo({ center: coordinates });
+    }
 
     useEffect(() => {
         const container = containerRef.current;
@@ -77,7 +68,7 @@ export function MapView(position: AircraftPosition) {
                 source.url = `pmtiles://${new URL("/maps/map.pmtiles", window.location.origin).href}`;
                 map = new maplibregl.Map({
                     container: container!,
-                    center: initialCenter.current,
+                    center: latestPosition.current ?? [174.973096, -40.957876],
                     zoom: 17,
                     maxZoom: 22,
                     style,
@@ -145,13 +136,9 @@ export function MapView(position: AircraftPosition) {
                     });
                 });
 
-                const icon = document.createElement("img");
-                icon.src = "./marker.svg";
-                icon.alt = "Aircraft position";
-                icon.style.width = "32px";
-                icon.style.height = "32px";
-                markerRef.current = new maplibregl.Marker({ element: icon })
-                    .setLngLat(latestPosition.current).addTo(currentMap);
+                if (latestPosition.current) {
+                    updateAircraft(currentMap, latestPosition.current);
+                }
             } catch (cause) {
                 if (!controller.signal.aborted) {
                     setError(cause instanceof Error ? cause.message : "Unable to load the map");
@@ -165,16 +152,20 @@ export function MapView(position: AircraftPosition) {
             markerRef.current?.remove();
             markerRef.current = null;
             map?.remove();
+            mapRef.current = null;
         };
     }, []);
 
     useEffect(() => {
-        latestPosition.current = [position.lng, position.lat];
+        if (!position) return;
+        const coordinates: [number, number] = [position.lng, position.lat];
+        latestPosition.current = coordinates;
+        const previous = trailRef.current.at(-1);
+        if (!previous || previous[0] !== coordinates[0] || previous[1] !== coordinates[1]) {
+            trailRef.current.push(coordinates);
+        }
 
-        markerRef.current?.setLngLat([position.lng, position.lat]);
-
-        trailRef.current.push([position.lng, position.lat]);
-
+        if (mapRef.current) updateAircraft(mapRef.current, coordinates);
         updateTrail();
     }, [position]);
 
