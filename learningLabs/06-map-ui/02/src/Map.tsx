@@ -2,19 +2,59 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type {AircraftPosition} from "./types.ts";
+import {Marker} from "maplibre-gl";
 
 const protocol = new Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
-type Props = { lat: number; lng: number };
 
-export function MapView({ lat, lng }: Props) {
+export function MapView(position: AircraftPosition) {
     const containerRef = useRef<HTMLDivElement>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
-    const initialCenter = useRef<[number, number]>([lng, lat]);
-    const latestPosition = useRef<[number, number]>([lng, lat]);
+    const mapRef = useRef<maplibregl.Map | null>(null);
+    const trailRef = useRef<[number, number][]>([[position.lng, position.lat],]);
+    const initialCenter = useRef<[number, number]>([position.lng, position.lat]);
+    const latestPosition = useRef<[number, number]>([position.lng, position.lat]);
     const [error, setError] = useState<string | null>(null);
     const [raster, setRaster] = useState(false);
+
+    function updateTrail() {
+        const source =
+            mapRef.current?.getSource("trail") as maplibregl.GeoJSONSource | undefined;
+
+        source?.setData({
+            type: "Feature",
+            properties: {},
+            geometry: {
+                type: "LineString",
+                coordinates: trailRef.current,
+            },
+        });
+    }
+
+    useEffect(() => {
+        if (!mapRef.current) {
+            return;
+        }
+
+        if (!position) {
+            markerRef.current?.remove();
+            markerRef.current = null;
+            return;
+        }
+
+        if (!markerRef.current) {
+            markerRef.current = new Marker()
+                .setLngLat([position.lng, position.lat])
+                .addTo(mapRef.current);
+        }
+
+        markerRef.current.setLngLat([
+            position.lng,
+            position.lat,
+        ]);
+    }, [position]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -43,6 +83,7 @@ export function MapView({ lat, lng }: Props) {
                     style,
                 });
                 const currentMap = map;
+                mapRef.current = currentMap;
                 currentMap.on("error", (event) => {
                     console.error("Map error:", event.error);
                     setError(`Unable to render the selected map: ${event.error.message}`);
@@ -52,6 +93,7 @@ export function MapView({ lat, lng }: Props) {
                 });
                 currentMap.addControl(new maplibregl.NavigationControl());
                 currentMap.addControl(new maplibregl.ScaleControl());
+
                 currentMap.on("click", (event) => {
                     const features = currentMap.queryRenderedFeatures(event.point);
                     const content = document.createElement("div");
@@ -78,6 +120,31 @@ export function MapView({ lat, lng }: Props) {
                             .setLngLat(event.lngLat).setDOMContent(content).addTo(currentMap);
                     }
                 });
+
+                currentMap.on("load", () => {
+                    currentMap.addSource("trail", {
+                        type: "geojson",
+                        data: {
+                            type: "Feature",
+                            properties: {},
+                            geometry: {
+                                type: "LineString",
+                                coordinates: trailRef.current,
+                            },
+                        },
+                    });
+
+                    currentMap.addLayer({
+                        id: "trail",
+                        type: "line",
+                        source: "trail",
+                        paint: {
+                            "line-color": "#007aff",
+                            "line-width": 3,
+                        },
+                    });
+                });
+
                 const icon = document.createElement("img");
                 icon.src = "./marker.svg";
                 icon.alt = "Aircraft position";
@@ -102,14 +169,14 @@ export function MapView({ lat, lng }: Props) {
     }, []);
 
     useEffect(() => {
-        latestPosition.current = [lng, lat];
-        markerRef.current?.setLngLat([lng, lat]);
-        const timer = window.setInterval(() => {
-            latestPosition.current[1] += 0.000003; // Move north; keep longitude fixed.
-            markerRef.current?.setLngLat(latestPosition.current);
-        }, 100);
-        return () => window.clearInterval(timer);
-    }, [lat, lng]);
+        latestPosition.current = [position.lng, position.lat];
+
+        markerRef.current?.setLngLat([position.lng, position.lat]);
+
+        trailRef.current.push([position.lng, position.lat]);
+
+        updateTrail();
+    }, [position]);
 
     return (
         <div style={{ position: "relative" }}>

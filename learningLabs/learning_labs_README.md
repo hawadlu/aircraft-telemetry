@@ -659,7 +659,7 @@ Live systems must handle broken connections without lying to the user.
 ---
 
 # Stage 6: Map UI
-
+<i>Note: Labs 2 - 6 have been combined</i>
 ## Lab 06.1: MapLibre Static Map
 
 ### Goal

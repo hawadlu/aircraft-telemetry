@@ -13,7 +13,7 @@ personal laptop into `maps/map-data`, then install the Node dependencies:
 ```sh
 cd maps/map-server # from the repository root
 npm install
-npm start -- queenElizabethPark
+npm start -- kapiti-coast-2025.pmtiles
 ```
 
 Use the name of the archive you copied, for example `kapiti-coast-2025` for

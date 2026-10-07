@@ -1,4 +1,4 @@
-import {useEffect, useReducer, useState} from 'react';
+import {useEffect, useReducer} from 'react';
 import * as signalR from '@microsoft/signalr';
 import {HubConnection} from "@microsoft/signalr";
 import {initialState, stateReducer} from "./reducer.ts";
