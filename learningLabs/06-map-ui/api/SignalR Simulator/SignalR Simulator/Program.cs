@@ -2,6 +2,7 @@ using _05;
 using DealingWithJsonErrors;
 using Microsoft.AspNetCore.SignalR;
 using System.Text.Json;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,15 +29,34 @@ public sealed class MessagePublisher(
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
-        List<TelemetryDataPoint> telemetryDataPoints = getTelemetryDataPoints(100);
+        List<TelemetryDataPoint> telemetryDataPoints = getTelemetryDataPoints(1000);
         List<SystemTelemetryDataPoint> systemTelemetryDataPoints = getSystemDataTelemetryPoints(telemetryDataPoints);
         Console.WriteLine("Finished creating data");
         
+        TelemetryDataPoint? previous = null;
+        var clock = Stopwatch.StartNew();
+        TimeSpan previousElapsed = TimeSpan.Zero;
+        int sequence = 0;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             for (int i = 0; i < telemetryDataPoints.Count; i++)
             {
-                var message = new Message(JsonSerializer.Serialize(telemetryDataPoints[i]));
+                var sample = telemetryDataPoints[i];
+                var elapsed = clock.Elapsed;
+                double[] coordinates = [sample.Lat, sample.Lon];
+                var point = sample with
+                {
+                    Seq = ++sequence,
+                    TimestampUtc = DateTimeOffset.UtcNow,
+                    GroundSpeedKmh = previous is null ? 0 : calculateGroundSpeedKmh(
+                        previous, coordinates, (elapsed - previousElapsed).TotalSeconds),
+                    HeadingDegrees = previous is null ? sample.HeadingDegrees
+                        : calculateHeadingDegrees(previous, coordinates)
+                };
+                previous = point;
+                previousElapsed = elapsed;
+                var message = new Message(JsonSerializer.Serialize(point));
 
                 await hub.Clients.All.SendAsync(
                     "MessagePublished",
@@ -48,7 +68,7 @@ public sealed class MessagePublisher(
                     message.Text);
 
                 await Task.Delay(
-                    TimeSpan.FromMilliseconds(500),
+                    TimeSpan.FromMilliseconds(100),
                     stoppingToken);
             }
         }
@@ -98,7 +118,7 @@ public sealed class MessagePublisher(
                     Lat = coordinates[0],
                     Lon = coordinates[1],
                     AltitudeMetres = 1.0,
-                    GroundSpeedKmh = 1.0,
+                    GroundSpeedKmh = 0,
                     HeadingDegrees = heading,
                     BatteryVolts = 1
                 };
@@ -106,6 +126,27 @@ public sealed class MessagePublisher(
                 dateTimeOffset = dateTimeOffset.AddSeconds(1);
             }
             return points;
+        }
+
+        // Great-circle surface distance divided by monotonic elapsed time.
+        // Altitude is intentionally excluded: this is ground speed.
+        private static double calculateGroundSpeedKmh(
+            TelemetryDataPoint previous, double[] coordinates, double elapsedSeconds)
+        {
+            if (elapsedSeconds <= 0) return 0;
+
+            const double earthRadiusMetres = 6378137;
+            double previousLat = previous.Lat * Math.PI / 180;
+            double latestLat = coordinates[0] * Math.PI / 180;
+            double deltaLat = latestLat - previousLat;
+            double deltaLon = (coordinates[1] - previous.Lon) * Math.PI / 180;
+            double haversine = Math.Pow(Math.Sin(deltaLat / 2), 2)
+                + Math.Cos(previousLat) * Math.Cos(latestLat)
+                * Math.Pow(Math.Sin(deltaLon / 2), 2);
+            double distanceMetres = 2 * earthRadiusMetres
+                * Math.Asin(Math.Sqrt(Math.Clamp(haversine, 0, 1)));
+
+            return distanceMetres / elapsedSeconds * 3.6;
         }
 
         private double calculateHeadingDegrees(TelemetryDataPoint previous, double[] coordinates)

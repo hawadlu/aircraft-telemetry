@@ -19,3 +19,12 @@ export type AircraftPosition = {
 	lng: number;
 	heading: number;
 };
+
+export type Telemetry = {
+    altitudeMetres: number | null;
+    headingDegrees: number | null;
+    groundSpeedKmh: number | null;
+    batteryVolts: number | null;
+    lat: number | null;
+    lon: number | null;
+};

@@ -14,7 +14,7 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
     const markerRef = useRef<maplibregl.Marker | null>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const trailRef = useRef<[number, number][]>([]);
-    const latestPosition = useRef<[number, number] | null>(null);
+    const latestPosition = useRef<AircraftPosition | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [raster, setRaster] = useState(false);
 
@@ -32,20 +32,20 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
         });
     }
 
-    function updateAircraft(map: maplibregl.Map, coordinates: [number, number]) {
+    function updateAircraft(map: maplibregl.Map, aircraft: AircraftPosition) {
+        const coordinates: [number, number] = [aircraft.lng, aircraft.lat];
         if (!markerRef.current) {
             const icon = document.createElement("img");
             icon.src = "./marker.svg";
             icon.alt = "Aircraft position";
             icon.style.width = "32px";
             icon.style.height = "32px";
-            console.log("Heading: " + position?.heading)
-            markerRef.current = new maplibregl.Marker({ element: icon })
-                .setRotation(position?.heading)
+            markerRef.current = new maplibregl.Marker({ element: icon, rotationAlignment: "map" })
                 .setLngLat(coordinates).addTo(map);
         } else {
             markerRef.current.setLngLat(coordinates);
         }
+        markerRef.current.setRotation(aircraft.heading);
         map.jumpTo({ center: coordinates });
     }
 
@@ -70,7 +70,9 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
                 source.url = `pmtiles://${new URL("/maps/map.pmtiles", window.location.origin).href}`;
                 map = new maplibregl.Map({
                     container: container!,
-                    center: latestPosition.current ?? [174.973096, -40.957876],
+                    center: latestPosition.current
+                        ? [latestPosition.current.lng, latestPosition.current.lat]
+                        : [174.973096, -40.957876],
                     zoom: 17,
                     maxZoom: 22,
                     style,
@@ -161,13 +163,13 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
     useEffect(() => {
         if (!position) return;
         const coordinates: [number, number] = [position.lng, position.lat];
-        latestPosition.current = coordinates;
+        latestPosition.current = position;
         const previous = trailRef.current.at(-1);
         if (!previous || previous[0] !== coordinates[0] || previous[1] !== coordinates[1]) {
             trailRef.current.push(coordinates);
         }
 
-        if (mapRef.current) updateAircraft(mapRef.current, coordinates);
+        if (mapRef.current) updateAircraft(mapRef.current, position);
         updateTrail();
     }, [position]);
 
@@ -175,7 +177,6 @@ export function MapView({ position }: { position: AircraftPosition | null }) {
         <div style={{ position: "relative" }}>
             <div ref={containerRef} style={{ width: "100%", height: "80vh" }} />
             {error && <p role="alert" style={{ position: "absolute", top: 8, left: 8, right: 48, background: "white", padding: 12 }}>{error}</p>}
-            <p>{raster ? "Aerial imagery. Zoom in to inspect ground detail." : "Click a feature to inspect its stored OSM tags. Labels and colours use an OpenStreetMap-like style."}</p>
         </div>
     );
 }

@@ -4,13 +4,16 @@ import {useEffect, useReducer, useState} from "react";
 import {HubConnection} from "@microsoft/signalr";
 import * as signalR from '@microsoft/signalr';
 import {initialState, stateReducer} from "./reducer.ts";
-import {Action, type AircraftPosition, Status} from "./types.ts";
+import {Action, type AircraftPosition, type Telemetry, Status} from "./types.ts";
 import Timer from "./Timer.tsx";
+import TelemetryCards from "./TelemetryCards.tsx";
 
 
 export default function App() {
 	// No aircraft marker until valid coordinates arrive.
 	const [position, setPosition] = useState<AircraftPosition | null>(null);
+
+	const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
 
 	const [state, dispatch] = useReducer(stateReducer, initialState);
 
@@ -57,12 +60,32 @@ export default function App() {
 
             try {
                 const telemetry = JSON.parse(data.text);
+                const readNumber = (camel: string, pascal: string): number | null => {
+                    const value = telemetry?.[camel] ?? telemetry?.[pascal];
+                    return typeof value === "number" && Number.isFinite(value) ? value : null;
+                };
+                if (telemetry && typeof telemetry === "object") {
+                    setTelemetry({
+                        altitudeMetres: readNumber("altitudeMetres", "AltitudeMetres"),
+                        headingDegrees: readNumber("headingDegrees", "HeadingDegrees"),
+                        groundSpeedKmh: readNumber("groundSpeedKmh", "GroundSpeedKmh"),
+                        batteryVolts: readNumber("batteryVolts", "BatteryVolts"),
+                        lat: readNumber("lat", "Lat"),
+                        lon: readNumber("lon", "Lon"),
+                    });
+                }
                 const lat = telemetry?.lat ?? telemetry?.Lat;
                 const lng = telemetry?.lon ?? telemetry?.Lon;
-	            const heading = telemetry?.HeadingDegrees ?? telemetry?.HeadingDegrees;
+	            const heading = telemetry?.headingDegrees ?? telemetry?.HeadingDegrees;
                 if (typeof lat === "number" && Number.isFinite(lat) && Math.abs(lat) <= 90 &&
                     typeof lng === "number" && Number.isFinite(lng) && Math.abs(lng) <= 180) {
-                    setPosition({ lat, lng, heading });
+                    setPosition(previous => ({
+                        lat,
+                        lng,
+                        heading: typeof heading === "number" && Number.isFinite(heading)
+                            ? ((heading % 360) + 360) % 360
+                            : previous?.heading ?? 0,
+                    }));
                 }
             } catch (error) {
                 console.warn("Ignoring invalid coordinate payload", error);
@@ -92,9 +115,10 @@ export default function App() {
 
 	return (
 		<>
-			<h1>App</h1>
 			<MapView position={position}/>
-			<div style={{padding: '20px', fontFamily: 'monospace', maxWidth: '800px', margin: '0 auto'}}>
+			<div style={{padding: '20px', fontFamily: 'monospace', width: '100%', boxSizing: 'border-box'}}>
+				<TelemetryCards telemetry={telemetry} status={state.status} />
+
 				<h2>SignalR JSON Feed</h2>
 
 				{/* Status Bar */}
@@ -108,6 +132,7 @@ export default function App() {
 					<strong>Status:</strong> {state.status}
 					<Timer lastReceivedDate={state.lastReceivedDate}/>
 				</div>
+
 
 				{/* Control Button */}
 				{state.messages.length > 0 && (

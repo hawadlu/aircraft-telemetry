@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "maplibre-gl": "^6.10.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "pmtiles": "^4.3.0",
+    "@mantine/core": "^9.7.1",
+    "@mantine/hooks": "^9.7.1",
     "@microsoft/signalr": "^10.0.11",
-    "@tanstack/react-query": "^5.102.8"
+    "@tanstack/react-query": "^5.102.8",
+    "maplibre-gl": "^6.10.0",
+    "pmtiles": "^4.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
